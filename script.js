@@ -105,6 +105,8 @@ const typeBtn = document.getElementById("typeBtn");
 const undoBtn = document.getElementById("undoBtn");
 const stats = document.getElementById("stats");
 const lastCharEl = document.getElementById("lastChar");
+const fakeCaret = document.getElementById("fakeCaret");
+
 
 // --- State ---
 const state = {
@@ -195,3 +197,54 @@ if (loaded) {
 }
 
 render();
+function positionCaret() {
+  // textarea içindeki metnin sonuna caret yerleştirme
+  // basit ölçüm: hidden mirror div ile son karakterin pixel konumu hesaplanır
+  positionCaret();
+
+
+  const text = novelText.value;
+
+  const mirror = document.createElement("div");
+  const style = window.getComputedStyle(novelText);
+
+  // textarea'nın yazı stilini aynala
+  mirror.style.position = "absolute";
+  mirror.style.visibility = "hidden";
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.wordWrap = "break-word";
+  mirror.style.overflowWrap = "break-word";
+
+  mirror.style.fontFamily = style.fontFamily;
+  mirror.style.fontSize = style.fontSize;
+  mirror.style.lineHeight = style.lineHeight;
+  mirror.style.padding = style.padding;
+  mirror.style.border = style.border;
+  mirror.style.width = style.width;
+
+  // textarea ile aynı scroll durumunu hesaba kat
+  mirror.style.height = style.height;
+
+  // textarea içeriği + anchor
+  mirror.textContent = text;
+  const anchor = document.createElement("span");
+  anchor.textContent = "\u200b"; // zero-width space
+  mirror.appendChild(anchor);
+
+  // novel container içine koy (ölçüm için)
+  const container = novelText.parentElement;
+  container.appendChild(mirror);
+
+  const anchorRect = anchor.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  // caret'i konumlandır
+  const x = anchorRect.left - containerRect.left;
+  const y = anchorRect.top - containerRect.top;
+
+  fakeCaret.style.left = x + "px";
+  fakeCaret.style.top = y + "px";
+
+  // cleanup
+  container.removeChild(mirror);
+}
