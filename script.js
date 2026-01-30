@@ -6,7 +6,6 @@ const KEY_KEYS = "infinite_novel_keystrokes";
 // --- Character pools ---
 const lettersLower = "abcçdefgğhıijklmnoöprsştuüvyz";
 const lettersUpper = lettersLower.toUpperCase();
-
 const punctuation = [".", ",", ";", ":", "!", "?", "…"];
 const rareSymbols = ["—", "“", "”", "(", ")", "[", "]"];
 
@@ -21,12 +20,11 @@ function randomFromArray(arr) {
 
 function weightedPick(items) {
   const total = items.reduce((sum, i) => sum + i.weight, 0);
-  const r = Math.random() * total;
+  let r = Math.random() * total;
 
-  let acc = 0;
   for (const item of items) {
-    acc += item.weight;
-    if (r <= acc) return item.value;
+    r -= item.weight;
+    if (r <= 0) return item.value;
   }
   return items[items.length - 1].value;
 }
@@ -66,6 +64,7 @@ function countWords(text) {
   return trimmed.split(/\s+/).filter(Boolean).length;
 }
 
+// --- Storage ---
 function saveState() {
   try {
     localStorage.setItem(KEY_TEXT, state.text);
@@ -91,14 +90,6 @@ function loadState() {
   }
 }
 
-function clearState() {
-  try {
-    localStorage.removeItem(KEY_TEXT);
-    localStorage.removeItem(KEY_HISTORY);
-    localStorage.removeItem(KEY_KEYS);
-  } catch (e) {}
-}
-
 // --- DOM ---
 const novelText = document.getElementById("novelText");
 const typeBtn = document.getElementById("typeBtn");
@@ -107,7 +98,6 @@ const stats = document.getElementById("stats");
 const lastCharEl = document.getElementById("lastChar");
 const fakeCaret = document.getElementById("fakeCaret");
 
-
 // --- State ---
 const state = {
   text: "",
@@ -115,7 +105,10 @@ const state = {
   keystrokes: 0,
 };
 
+// --- UI helpers ---
 function setLastChar(ch) {
+  if (!lastCharEl) return;
+
   if (!ch) {
     lastCharEl.style.display = "none";
     lastCharEl.textContent = "";
@@ -129,6 +122,87 @@ function setLastChar(ch) {
   setLastChar._t = setTimeout(() => setLastChar(null), 250);
 }
 
+function caretFlash() {
+  if (!fakeCaret) return;
+  fakeCaret.classList.remove("flash");
+  // restart animation trick
+  void fakeCaret.offsetWidth;
+  fakeCaret.classList.add("flash");
+}
+
+function escapeHtml(s) {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+/**
+ * ChatGPT-like caret positioning:
+ * - We keep textarea visible (normal)
+ * - We measure the pixel position of the end of the text using a hidden mirror
+ * - Then place #fakeCaret at that point
+ */
+function positionCaretAtEnd() {
+  if (!fakeCaret) return;
+
+  const text = novelText.value;
+
+  // caret should show even when empty (top-left inside padding)
+  const taRect = novelText.getBoundingClientRect();
+  const taStyle = window.getComputedStyle(novelText);
+
+  // Create mirror element (offscreen but measurable)
+  const mirror = document.createElement("div");
+  mirror.setAttribute("aria-hidden", "true");
+
+  mirror.style.position = "fixed";
+  mirror.style.left = taRect.left + "px";
+  mirror.style.top = taRect.top + "px";
+  mirror.style.width = taRect.width + "px";
+  mirror.style.height = taRect.height + "px";
+
+  mirror.style.visibility = "hidden";
+  mirror.style.pointerEvents = "none";
+
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.wordBreak = "break-word";
+  mirror.style.overflowWrap = "break-word";
+
+  mirror.style.fontFamily = taStyle.fontFamily;
+  mirror.style.fontSize = taStyle.fontSize;
+  mirror.style.lineHeight = taStyle.lineHeight;
+
+  mirror.style.padding = taStyle.padding;
+  mirror.style.border = taStyle.border;
+
+  // content + anchor
+  // NOTE: use innerHTML to preserve newlines in measurement
+  const safe = escapeHtml(text);
+  mirror.innerHTML = safe.replaceAll("\n", "<br/>") + "<span id='__a'>\u200b</span>";
+
+  document.body.appendChild(mirror);
+
+  const anchor = mirror.querySelector("#__a");
+  const aRect = anchor.getBoundingClientRect();
+
+  // caret position relative to .novel container
+  const novelRect = novelText.parentElement.getBoundingClientRect();
+
+  // Subtract textarea scrollTop so caret moves up while textarea scrolls down
+  const left = aRect.left - novelRect.left;
+  const top = aRect.top - novelRect.top - novelText.scrollTop;
+
+  fakeCaret.style.left = `${left}px`;
+  fakeCaret.style.top = `${top}px`;
+
+  // show caret
+  fakeCaret.style.opacity = "1";
+
+  document.body.removeChild(mirror);
+}
+
+// --- Render ---
 function render() {
   novelText.value = state.text;
 
@@ -139,24 +213,31 @@ function render() {
   const words = countWords(state.text);
 
   stats.textContent = `${chars.toLocaleString()} chars • ${words.toLocaleString()} words • ${state.keystrokes.toLocaleString()} keystrokes`;
-
   undoBtn.disabled = state.history.length === 0;
 
   saveState();
+
+  // caret update
+  positionCaretAtEnd();
 }
 
+// --- Actions ---
 function typeChar() {
   const ch = generateRandomChar();
+
   state.history.push(state.text);
   state.text += ch;
   state.keystrokes += 1;
+
   setLastChar(ch);
+  caretFlash();
   render();
 }
 
 function undo() {
   if (state.history.length === 0) return;
   state.text = state.history.pop() || "";
+  caretFlash();
   render();
 }
 
@@ -164,28 +245,27 @@ function undo() {
 typeBtn.addEventListener("click", typeChar);
 undoBtn.addEventListener("click", undo);
 
+// keyboard shortcuts
 window.addEventListener("keydown", (e) => {
-  // TYPE
   if (e.key === " " || e.key === "Enter") {
     e.preventDefault();
     typeChar();
   }
 
-  // UNDO
   if (e.key === "Backspace") {
     e.preventDefault();
     undo();
   }
+});
 
-  // RESET (debug)
-  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "r") {
-    e.preventDefault();
-    clearState();
-    state.text = "";
-    state.history = [];
-    state.keystrokes = 0;
-    render();
-  }
+// caret should follow scroll
+novelText.addEventListener("scroll", () => {
+  positionCaretAtEnd();
+});
+
+// caret should reposition on resize
+window.addEventListener("resize", () => {
+  positionCaretAtEnd();
 });
 
 // --- Boot ---
@@ -197,54 +277,3 @@ if (loaded) {
 }
 
 render();
-function positionCaret() {
-  // textarea içindeki metnin sonuna caret yerleştirme
-  // basit ölçüm: hidden mirror div ile son karakterin pixel konumu hesaplanır
-  positionCaret();
-
-
-  const text = novelText.value;
-
-  const mirror = document.createElement("div");
-  const style = window.getComputedStyle(novelText);
-
-  // textarea'nın yazı stilini aynala
-  mirror.style.position = "absolute";
-  mirror.style.visibility = "hidden";
-  mirror.style.whiteSpace = "pre-wrap";
-  mirror.style.wordWrap = "break-word";
-  mirror.style.overflowWrap = "break-word";
-
-  mirror.style.fontFamily = style.fontFamily;
-  mirror.style.fontSize = style.fontSize;
-  mirror.style.lineHeight = style.lineHeight;
-  mirror.style.padding = style.padding;
-  mirror.style.border = style.border;
-  mirror.style.width = style.width;
-
-  // textarea ile aynı scroll durumunu hesaba kat
-  mirror.style.height = style.height;
-
-  // textarea içeriği + anchor
-  mirror.textContent = text;
-  const anchor = document.createElement("span");
-  anchor.textContent = "\u200b"; // zero-width space
-  mirror.appendChild(anchor);
-
-  // novel container içine koy (ölçüm için)
-  const container = novelText.parentElement;
-  container.appendChild(mirror);
-
-  const anchorRect = anchor.getBoundingClientRect();
-  const containerRect = container.getBoundingClientRect();
-
-  // caret'i konumlandır
-  const x = anchorRect.left - containerRect.left;
-  const y = anchorRect.top - containerRect.top;
-
-  fakeCaret.style.left = x + "px";
-  fakeCaret.style.top = y + "px";
-
-  // cleanup
-  container.removeChild(mirror);
-}
