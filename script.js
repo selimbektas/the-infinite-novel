@@ -252,6 +252,12 @@ typeBtn.addEventListener("click", typeChar);
 undoBtn.addEventListener("click", undo);
 novelText.addEventListener("scroll", () => {
   positionCaretAtEnd();
+  resetBtn.addEventListener("click", () => {
+  novelText.value = "";
+  historyStack = [];
+  lastCharEl.textContent = "";
+  lastCharEl.style.display = "none";
+  render();
 });
 
 
