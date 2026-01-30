@@ -146,13 +146,17 @@ function escapeHtml(s) {
 function positionCaretAtEnd() {
   if (!fakeCaret) return;
 
+  // caret'i .novel container'a göre konumlandıracağız
+  const novel = document.querySelector(".novel");
+  if (!novel) return;
+
   const text = novelText.value;
 
-  // caret should show even when empty (top-left inside padding)
   const taRect = novelText.getBoundingClientRect();
   const taStyle = window.getComputedStyle(novelText);
+  const novelRect = novel.getBoundingClientRect();
 
-  // Create mirror element (offscreen but measurable)
+  // Mirror: textarea ile aynı font/width/padding ile metnin sonunu ölçer
   const mirror = document.createElement("div");
   mirror.setAttribute("aria-hidden", "true");
 
@@ -160,7 +164,6 @@ function positionCaretAtEnd() {
   mirror.style.left = taRect.left + "px";
   mirror.style.top = taRect.top + "px";
   mirror.style.width = taRect.width + "px";
-  mirror.style.height = taRect.height + "px";
 
   mirror.style.visibility = "hidden";
   mirror.style.pointerEvents = "none";
@@ -176,9 +179,12 @@ function positionCaretAtEnd() {
   mirror.style.padding = taStyle.padding;
   mirror.style.border = taStyle.border;
 
-  // content + anchor
-  // NOTE: use innerHTML to preserve newlines in measurement
-  const safe = escapeHtml(text);
+  // metin + anchor
+  const safe = text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
   mirror.innerHTML = safe.replaceAll("\n", "<br/>") + "<span id='__a'>\u200b</span>";
 
   document.body.appendChild(mirror);
@@ -186,21 +192,19 @@ function positionCaretAtEnd() {
   const anchor = mirror.querySelector("#__a");
   const aRect = anchor.getBoundingClientRect();
 
-  // caret position relative to .novel container
-  const novelRect = novelText.parentElement.getBoundingClientRect();
-
-  // Subtract textarea scrollTop so caret moves up while textarea scrolls down
+  // caret: .novel'a göre left/top
   const left = aRect.left - novelRect.left;
   const top = aRect.top - novelRect.top - novelText.scrollTop;
 
   fakeCaret.style.left = `${left}px`;
   fakeCaret.style.top = `${top}px`;
 
-  // show caret
+  // caret görünür
   fakeCaret.style.opacity = "1";
 
   document.body.removeChild(mirror);
 }
+
 
 // --- Render ---
 function render() {
