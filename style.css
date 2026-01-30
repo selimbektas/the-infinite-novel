@@ -1,13 +1,24 @@
 :root {
-  --bg: #0a0a0a;
-  --panel: rgba(255, 255, 255, 0.04);
+  --bg: #0b0c10;
+  --panel: rgba(255, 255, 255, 0.05);
+  --panel2: rgba(255, 255, 255, 0.03);
   --border: rgba(255, 255, 255, 0.12);
+
   --text: rgba(255, 255, 255, 0.92);
-  --muted: rgba(255, 255, 255, 0.55);
-  --muted2: rgba(255, 255, 255, 0.35);
+  --muted: rgba(255, 255, 255, 0.58);
+  --muted2: rgba(255, 255, 255, 0.38);
+
   --white: #ffffff;
   --black: #000000;
-  --radius: 18px;
+
+  --radius: 22px;
+  --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
+  --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
+    Arial, "Apple Color Emoji", "Segoe UI Emoji";
 }
 
 * {
@@ -21,72 +32,129 @@ body {
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: radial-gradient(
+      1200px 700px at 50% -20%,
+      rgba(255, 255, 255, 0.06),
+      transparent 60%
+    ),
+    var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
-    Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: var(--sans);
 }
 
+/* layout */
 .wrap {
-  max-width: 860px;
+  max-width: 880px;
   margin: 0 auto;
-  padding: 40px 18px;
+  padding: 36px 16px 46px;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  min-height: 100vh;
+  gap: 16px;
+}
+
+/* header */
+.header {
+  padding: 6px 2px 2px;
 }
 
 .header h1 {
   margin: 0;
   font-size: 34px;
-  letter-spacing: -0.02em;
+  font-weight: 750;
+  letter-spacing: -0.03em;
 }
 
 .header p {
   margin: 8px 0 0 0;
   color: var(--muted);
   font-size: 14px;
+  line-height: 1.4;
 }
 
+/* novel editor panel */
 .novel {
+  position: relative;
   border: 1px solid var(--border);
-  background: var(--panel);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.04),
+    rgba(255, 255, 255, 0.02)
+  );
   border-radius: calc(var(--radius) + 6px);
   padding: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+/* subtle noise-like highlight */
+.novel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    900px 320px at 30% 0%,
+    rgba(255, 255, 255, 0.06),
+    transparent 55%
+  );
+  pointer-events: none;
 }
 
 #novelText {
+  position: relative;
+  z-index: 1;
+
   width: 100%;
   height: 56vh;
+
   border: none;
   outline: none;
   resize: none;
+
   background: transparent;
   color: var(--text);
+
+  font-family: var(--mono);
   font-size: 16px;
-  line-height: 1.7;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+  line-height: 1.75;
+
+  padding: 6px 6px;
+
+  /* nicer scrolling */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
 
 #novelText::placeholder {
   color: var(--muted2);
 }
 
+#novelText::-webkit-scrollbar {
+  width: 10px;
+}
+#novelText::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+#novelText::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* controls */
 .controls {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: stretch;
 }
 
 .btn {
-  border-radius: 22px;
-  padding: 16px 18px;
-  font-weight: 700;
-  cursor: pointer;
   border: 1px solid transparent;
-  transition: transform 0.05s ease;
+  border-radius: 999px;
+  padding: 14px 16px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 0.05s ease, opacity 0.2s ease, border-color 0.2s ease;
+  user-select: none;
 }
 
 .btn:active {
@@ -95,21 +163,29 @@ body {
 
 .btn-primary {
   flex: 1;
+  position: relative;
+
   background: var(--white);
   color: var(--black);
-  font-size: 18px;
-  position: relative;
+
+  font-size: 16px;
+  letter-spacing: 0.02em;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
 }
 
 .btn-secondary {
+  min-width: 120px;
   background: transparent;
   color: var(--text);
   border-color: var(--border);
-  font-size: 15px;
+  font-size: 14px;
+}
+
+.btn-secondary:hover {
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .btn-secondary:disabled {
@@ -117,6 +193,7 @@ body {
   cursor: not-allowed;
 }
 
+/* small chip showing last typed char */
 .btn-chip {
   display: none;
   position: absolute;
@@ -124,19 +201,24 @@ body {
   top: 50%;
   transform: translateY(-50%);
   padding: 6px 10px;
-  border-radius: 14px;
+  border-radius: 999px;
   background: rgba(0, 0, 0, 0.08);
   font-size: 13px;
+  font-weight: 800;
 }
 
+/* stats footer */
 .stats {
   font-size: 12px;
   color: var(--muted);
+  padding: 2px 2px;
 }
 
+/* hint footer */
 .hint {
   font-size: 12px;
   color: var(--muted2);
+  padding: 0 2px;
 }
 
 .sep {
@@ -145,104 +227,31 @@ body {
 }
 
 kbd {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+  font-family: var(--mono);
   border: 1px solid var(--border);
   padding: 2px 6px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.03);
   color: var(--text);
 }
-.editor {
-  position: relative;
-  width: 100%;
-  height: 56vh;
-}
 
-/* textarea aynı kalsın ama yazıyı görünmez yapacağız */
-.editor textarea {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-  outline: none;
-  resize: none;
-  background: transparent;
-
-  /* textarea yazısı görünmez */
-  color: transparent;
-  caret-color: transparent;
-
-  /* selection görünmesin */
-  -webkit-text-fill-color: transparent;
-
-  font-size: 16px;
-  line-height: 1.7;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
-}
-
-/* overlay text */
-#overlay {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  padding: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-
-  color: var(--text);
-  font-size: 16px;
-  line-height: 1.7;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
-
-  pointer-events: none;
-}
-
-/* caret */
-#caret {
-  position: absolute;
-  width: 10px;
-  height: 1.7em;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.85);
-  pointer-events: none;
-
-  animation: blink 1s steps(1) infinite;
-  transform: translateY(2px);
-}
-
-@keyframes blink {
-  0%,
-  45% {
-    opacity: 1;
-  }
-  46%,
-  100% {
-    opacity: 0;
-  }
-}
-.novel {
-  position: relative;
-}
-
+/* --- Fake caret (ChatGPT-like) --- */
 #fakeCaret {
   position: absolute;
+  z-index: 4;
 
-  /* caret boyutu: kalın değil, daha ince */
   width: 2px;
   height: 1.25em;
 
-  background: rgba(255, 255, 255, 0.9);
   border-radius: 2px;
 
-  /* textarea paddingine göre başlat */
-  left: 14px;
-  top: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.22);
 
   pointer-events: none;
+
+  /* hidden until positioned */
+  opacity: 0;
 
   animation: caretBlink 1s steps(1) infinite;
 }
@@ -255,5 +264,41 @@ kbd {
   46%,
   100% {
     opacity: 0;
+  }
+}
+
+#fakeCaret.flash {
+  animation: caretBlink 1s steps(1) infinite, caretFlash 140ms ease-out;
+}
+
+@keyframes caretFlash {
+  from {
+    transform: scaleY(1.25);
+    box-shadow: 0 0 16px rgba(255, 255, 255, 0.35);
+  }
+  to {
+    transform: scaleY(1);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.22);
+  }
+}
+
+/* mobile */
+@media (max-width: 640px) {
+  .header h1 {
+    font-size: 28px;
+  }
+
+  #novelText {
+    height: 52vh;
+    font-size: 15px;
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+
+  .btn-secondary {
+    width: 100%;
+    min-width: 0;
   }
 }
