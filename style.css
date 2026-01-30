@@ -224,3 +224,36 @@ kbd {
     opacity: 0;
   }
 }
+.novel {
+  position: relative;
+}
+
+#fakeCaret {
+  position: absolute;
+
+  /* caret boyutu: kalın değil, daha ince */
+  width: 2px;
+  height: 1.25em;
+
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 2px;
+
+  /* textarea paddingine göre başlat */
+  left: 14px;
+  top: 14px;
+
+  pointer-events: none;
+
+  animation: caretBlink 1s steps(1) infinite;
+}
+
+@keyframes caretBlink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  46%,
+  100% {
+    opacity: 0;
+  }
+}
