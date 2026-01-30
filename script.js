@@ -252,12 +252,6 @@ typeBtn.addEventListener("click", typeChar);
 undoBtn.addEventListener("click", undo);
 novelText.addEventListener("scroll", () => {
   positionCaretAtEnd();
-  resetBtn.addEventListener("click", () => {
-  novelText.value = "";
-  historyStack = [];
-  lastCharEl.textContent = "";
-  lastCharEl.style.display = "none";
-  render();
 });
 
 
@@ -274,11 +268,6 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// caret should follow scroll
-novelText.addEventListener("scroll", () => {
-  positionCaretAtEnd();
-});
-
 // caret should reposition on resize
 window.addEventListener("resize", () => {
   positionCaretAtEnd();
@@ -293,3 +282,20 @@ if (loaded) {
 }
 
 render();
+// RESET
+const resetBtn = document.getElementById("resetBtn");
+
+if (resetBtn) {
+  resetBtn.addEventListener("click", () => {
+    state.text = "";
+    state.history = [];
+    state.keystrokes = 0;
+
+    lastCharEl.textContent = "";
+    lastCharEl.style.display = "none";
+
+    saveState();
+    render();
+  });
+}
+
