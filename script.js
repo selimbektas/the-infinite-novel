@@ -248,6 +248,10 @@ function undo() {
 // --- Events ---
 typeBtn.addEventListener("click", typeChar);
 undoBtn.addEventListener("click", undo);
+novelText.addEventListener("scroll", () => {
+  positionCaretAtEnd();
+});
+
 
 // keyboard shortcuts
 window.addEventListener("keydown", (e) => {
