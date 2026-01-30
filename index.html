@@ -18,14 +18,20 @@
         <p>Can you write a novel with a single key?</p>
       </header>
 
-      <section class="novel">
-        <textarea
-          id="novelText"
-          readonly
-          spellcheck="false"
-          placeholder="Start your novel. One key at a time."
-        ></textarea>
-      </section>
+     <section class="novel">
+  <div class="editor" id="editor">
+    <pre id="overlay" aria-hidden="true"></pre>
+    <span id="caret" aria-hidden="true"></span>
+
+    <textarea
+      id="novelText"
+      readonly
+      spellcheck="false"
+      placeholder="Start your novel. One key at a time."
+    ></textarea>
+  </div>
+</section>
+
 
       <section class="controls">
         <button id="typeBtn" class="btn btn-primary" aria-label="Type random character">
