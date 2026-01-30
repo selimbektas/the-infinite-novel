@@ -97,6 +97,8 @@ const undoBtn = document.getElementById("undoBtn");
 const stats = document.getElementById("stats");
 const lastCharEl = document.getElementById("lastChar");
 const fakeCaret = document.getElementById("fakeCaret");
+const resetBtn = document.getElementById("resetBtn");
+
 
 // --- State ---
 const state = {
