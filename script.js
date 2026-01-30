@@ -1,301 +1,286 @@
-// --- Storage keys ---
-const KEY_TEXT = "infinite_novel_text";
-const KEY_HISTORY = "infinite_novel_history";
-const KEY_KEYS = "infinite_novel_keystrokes";
+/* =========================================================
+   THE INFINITE NOVEL
+   script.js (clean + stable)
+   ========================================================= */
 
-// --- Character pools ---
-const lettersLower = "abcçdefgğhıijklmnoöprsştuüvyz";
-const lettersUpper = lettersLower.toUpperCase();
-const punctuation = [".", ",", ";", ":", "!", "?", "…"];
-const rareSymbols = ["—", "“", "”", "(", ")", "[", "]"];
+"use strict";
 
-// --- Helpers ---
-function randomFromString(s) {
-  return s[Math.floor(Math.random() * s.length)];
+/* ---------------------------
+   Config
+--------------------------- */
+
+// Random pool (letters + punctuation + whitespace)
+const CHAR_POOL = [
+  ..."abcdefghijklmnopqrstuvwxyz",
+  ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  ..."0123456789",
+  ..."ğüşıöçĞÜŞİÖÇ",
+  ..." .,;:!?—-()[]{}'\"/\\",
+  "\n",
+];
+
+// localStorage key
+const STORAGE_KEY = "the-infinite-novel:v1";
+
+/* ---------------------------
+   State
+--------------------------- */
+
+const state = {
+  text: "",
+  history: [], // stack of appended chars
+  keystrokes: 0,
+};
+
+/* ---------------------------
+   DOM
+--------------------------- */
+
+const novelText = document.getElementById("novelText");
+const typeBtn = document.getElementById("typeBtn");
+const undoBtn = document.getElementById("undoBtn");
+const resetBtn = document.getElementById("resetBtn"); // optional
+const stats = document.getElementById("stats");
+const lastCharEl = document.getElementById("lastChar");
+const fakeCaret = document.getElementById("fakeCaret");
+
+/* ---------------------------
+   Utils
+--------------------------- */
+
+function pickRandomChar() {
+  const idx = Math.floor(Math.random() * CHAR_POOL.length);
+  return CHAR_POOL[idx];
 }
 
-function randomFromArray(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function weightedPick(items) {
-  const total = items.reduce((sum, i) => sum + i.weight, 0);
-  let r = Math.random() * total;
-
-  for (const item of items) {
-    r -= item.weight;
-    if (r <= 0) return item.value;
-  }
-  return items[items.length - 1].value;
-}
-
-function generateRandomChar() {
-  const category = weightedPick([
-    { value: "letter", weight: 70 },
-    { value: "space", weight: 12 },
-    { value: "punct", weight: 14 },
-    { value: "newline", weight: 2 },
-    { value: "rare", weight: 2 },
-  ]);
-
-  switch (category) {
-    case "letter": {
-      const useUpper = Math.random() < 0.1;
-      return useUpper
-        ? randomFromString(lettersUpper)
-        : randomFromString(lettersLower);
-    }
-    case "space":
-      return " ";
-    case "punct":
-      return randomFromArray(punctuation);
-    case "newline":
-      return "\n";
-    case "rare":
-      return randomFromArray(rareSymbols);
-    default:
-      return " ";
-  }
-}
-
-function countWords(text) {
-  const trimmed = text.trim();
+function countWords(str) {
+  const trimmed = str.trim();
   if (!trimmed) return 0;
   return trimmed.split(/\s+/).filter(Boolean).length;
 }
 
-// --- Storage ---
+function escapeVisibleChar(ch) {
+  if (ch === "\n") return "↵";
+  if (ch === " ") return "␠";
+  if (ch === "\t") return "⇥";
+  return ch;
+}
+
+/* ---------------------------
+   Persistence
+--------------------------- */
+
 function saveState() {
   try {
-    localStorage.setItem(KEY_TEXT, state.text);
-    localStorage.setItem(KEY_HISTORY, JSON.stringify(state.history));
-    localStorage.setItem(KEY_KEYS, String(state.keystrokes));
-  } catch (e) {}
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (_) {}
 }
 
 function loadState() {
   try {
-    const text = localStorage.getItem(KEY_TEXT);
-    if (text === null) return null;
-
-    const historyRaw = localStorage.getItem(KEY_HISTORY);
-    const history = historyRaw ? JSON.parse(historyRaw) : [];
-
-    const keysRaw = localStorage.getItem(KEY_KEYS);
-    const keystrokes = keysRaw ? Number(keysRaw) : 0;
-
-    return { text, history, keystrokes };
-  } catch (e) {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) {
     return null;
   }
 }
 
-// --- DOM ---
-const novelText = document.getElementById("novelText");
-const typeBtn = document.getElementById("typeBtn");
-const undoBtn = document.getElementById("undoBtn");
-const stats = document.getElementById("stats");
-const lastCharEl = document.getElementById("lastChar");
-const fakeCaret = document.getElementById("fakeCaret");
-const resetBtn = document.getElementById("resetBtn");
+/* ---------------------------
+   Caret (fake)
+   - Mirrors textarea to measure where the text ends
+   - Supports wrapping + scroll
+--------------------------- */
 
-
-// --- State ---
-const state = {
-  text: "",
-  history: [],
-  keystrokes: 0,
-};
-
-// --- UI helpers ---
-function setLastChar(ch) {
-  if (!lastCharEl) return;
-
-  if (!ch) {
-    lastCharEl.style.display = "none";
-    lastCharEl.textContent = "";
-    return;
-  }
-
-  lastCharEl.style.display = "inline-block";
-  lastCharEl.textContent = ch === "\n" ? "↵" : ch;
-
-  clearTimeout(setLastChar._t);
-  setLastChar._t = setTimeout(() => setLastChar(null), 250);
-}
-
-function caretFlash() {
-  if (!fakeCaret) return;
-  fakeCaret.classList.remove("flash");
-  // restart animation trick
-  void fakeCaret.offsetWidth;
-  fakeCaret.classList.add("flash");
-}
-
-function escapeHtml(s) {
-  return s
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-/**
- * ChatGPT-like caret positioning:
- * - We keep textarea visible (normal)
- * - We measure the pixel position of the end of the text using a hidden mirror
- * - Then place #fakeCaret at that point
- */
 function positionCaretAtEnd() {
-  if (!fakeCaret) return;
+  if (!fakeCaret || !novelText) return;
 
-  // caret'i .novel container'a göre konumlandıracağız
   const novel = document.querySelector(".novel");
   if (!novel) return;
 
-  const text = novelText.value;
-
   const taRect = novelText.getBoundingClientRect();
-  const taStyle = window.getComputedStyle(novelText);
   const novelRect = novel.getBoundingClientRect();
+  const s = getComputedStyle(novelText);
 
-  // Mirror: textarea ile aynı font/width/padding ile metnin sonunu ölçer
   const mirror = document.createElement("div");
   mirror.setAttribute("aria-hidden", "true");
 
+  // place mirror exactly on top of textarea (viewport coordinates)
   mirror.style.position = "fixed";
-  mirror.style.left = taRect.left + "px";
-  mirror.style.top = taRect.top + "px";
-  mirror.style.width = taRect.width + "px";
+  mirror.style.left = `${taRect.left}px`;
+  mirror.style.top = `${taRect.top}px`;
+  mirror.style.width = `${taRect.width}px`;
 
   mirror.style.visibility = "hidden";
   mirror.style.pointerEvents = "none";
 
+  // match textarea behavior
   mirror.style.whiteSpace = "pre-wrap";
   mirror.style.wordBreak = "break-word";
   mirror.style.overflowWrap = "break-word";
 
-  mirror.style.fontFamily = taStyle.fontFamily;
-  mirror.style.fontSize = taStyle.fontSize;
-  mirror.style.lineHeight = taStyle.lineHeight;
+  mirror.style.fontFamily = s.fontFamily;
+  mirror.style.fontSize = s.fontSize;
+  mirror.style.fontWeight = s.fontWeight;
+  mirror.style.lineHeight = s.lineHeight;
 
-  mirror.style.padding = taStyle.padding;
-  mirror.style.border = taStyle.border;
+  mirror.style.padding = s.padding;
+  mirror.style.border = s.border;
+  mirror.style.boxSizing = "border-box";
 
-  // metin + anchor
-  const safe = text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+  // same text
+  mirror.textContent = novelText.value;
 
-  mirror.innerHTML = safe.replaceAll("\n", "<br/>") + "<span id='__a'>\u200b</span>";
+  // anchor at the end
+  const anchor = document.createElement("span");
+  anchor.textContent = "\u200b";
+  mirror.appendChild(anchor);
 
   document.body.appendChild(mirror);
 
-  const anchor = mirror.querySelector("#__a");
   const aRect = anchor.getBoundingClientRect();
 
-  // caret: .novel'a göre left/top
+  // convert viewport coords -> .novel local coords
   const left = aRect.left - novelRect.left;
   const top = aRect.top - novelRect.top - novelText.scrollTop;
 
   fakeCaret.style.left = `${left}px`;
   fakeCaret.style.top = `${top}px`;
-
-  // caret görünür
   fakeCaret.style.opacity = "1";
 
   document.body.removeChild(mirror);
 }
 
+function caretFlash() {
+  if (!fakeCaret) return;
+  fakeCaret.classList.remove("flash");
+  // force reflow
+  void fakeCaret.offsetWidth;
+  fakeCaret.classList.add("flash");
+}
 
-// --- Render ---
+/* ---------------------------
+   Render
+--------------------------- */
+
 function render() {
   novelText.value = state.text;
 
-  // auto-scroll bottom
-  novelText.scrollTop = novelText.scrollHeight;
-
+  // stats
   const chars = state.text.length;
   const words = countWords(state.text);
 
-  stats.textContent = `${chars.toLocaleString()} chars • ${words.toLocaleString()} words • ${state.keystrokes.toLocaleString()} keystrokes`;
+  stats.textContent = `${chars} chars • ${words} words • ${state.keystrokes} keystrokes`;
+
+  // undo button enabled?
   undoBtn.disabled = state.history.length === 0;
 
-  saveState();
-
-  // caret update
+  // caret
   positionCaretAtEnd();
 }
 
-// --- Actions ---
-function typeChar() {
-  const ch = generateRandomChar();
+/* ---------------------------
+   Actions
+--------------------------- */
 
-  state.history.push(state.text);
+function typeChar() {
+  const ch = pickRandomChar();
+
   state.text += ch;
+  state.history.push(ch);
   state.keystrokes += 1;
 
-  setLastChar(ch);
-  caretFlash();
+  // last char chip
+  if (lastCharEl) {
+    lastCharEl.textContent = escapeVisibleChar(ch);
+    lastCharEl.style.display = "inline-flex";
+  }
+
+  saveState();
   render();
+  caretFlash();
+
+  // keep view at bottom-ish (optional)
+  // novelText.scrollTop = novelText.scrollHeight;
 }
 
 function undo() {
   if (state.history.length === 0) return;
-  state.text = state.history.pop() || "";
-  caretFlash();
+
+  const last = state.history.pop();
+  state.text = state.text.slice(0, -last.length);
+
+  state.keystrokes += 1;
+
+  saveState();
   render();
+  caretFlash();
 }
 
-// --- Events ---
+function resetAll() {
+  state.text = "";
+  state.history = [];
+  state.keystrokes = 0;
+
+  if (lastCharEl) {
+    lastCharEl.textContent = "";
+    lastCharEl.style.display = "none";
+  }
+
+  saveState();
+  render();
+  caretFlash();
+}
+
+/* ---------------------------
+   Events
+--------------------------- */
+
+// buttons
 typeBtn.addEventListener("click", typeChar);
 undoBtn.addEventListener("click", undo);
-novelText.addEventListener("scroll", () => {
-  positionCaretAtEnd();
-});
 
+if (resetBtn) {
+  resetBtn.addEventListener("click", resetAll);
+}
+
+// scroll + resize
+novelText.addEventListener("scroll", positionCaretAtEnd);
+window.addEventListener("resize", positionCaretAtEnd);
 
 // keyboard shortcuts
 window.addEventListener("keydown", (e) => {
+  // type
   if (e.key === " " || e.key === "Enter") {
     e.preventDefault();
     typeChar();
+    return;
   }
 
+  // undo
   if (e.key === "Backspace") {
     e.preventDefault();
     undo();
+    return;
+  }
+
+  // reset: Ctrl+Shift+X
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "x") {
+    e.preventDefault();
+    resetAll();
+    return;
   }
 });
 
-// caret should reposition on resize
-window.addEventListener("resize", () => {
-  positionCaretAtEnd();
-});
+/* ---------------------------
+   Boot
+--------------------------- */
 
-// --- Boot ---
 const loaded = loadState();
 if (loaded) {
-  state.text = loaded.text || "";
+  state.text = typeof loaded.text === "string" ? loaded.text : "";
   state.history = Array.isArray(loaded.history) ? loaded.history : [];
   state.keystrokes = Number.isFinite(loaded.keystrokes) ? loaded.keystrokes : 0;
 }
 
 render();
-// RESET
-const resetBtn = document.getElementById("resetBtn");
-
-if (resetBtn) {
-  resetBtn.addEventListener("click", () => {
-    state.text = "";
-    state.history = [];
-    state.keystrokes = 0;
-
-    lastCharEl.textContent = "";
-    lastCharEl.style.display = "none";
-
-    saveState();
-    render();
-  });
-}
-
