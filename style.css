@@ -302,3 +302,67 @@ kbd {
     min-width: 0;
   }
 }
+
+/* Mode buttons */
+.mode-switch {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.btn-mode {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.btn-mode.active {
+  background: var(--white);
+  color: var(--black);
+}
+
+/* daily panel */
+.daily-panel {
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+}
+
+.daily-progress {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.daily-progress .slot {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.03);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.daily-stream {
+  margin-top: 8px;
+  color: var(--muted);
+  font-family: var(--mono);
+  white-space: pre-wrap;
+  max-height: 6.5rem;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* share button small */
+#shareDaily {
+  margin-right: 8px;
+}
