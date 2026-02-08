@@ -55,7 +55,6 @@ const dailyWordEl = document.getElementById("dailyWord");
 const dailyProgressEl = document.getElementById("dailyProgress");
 const dailyStreamEl = document.getElementById("dailyStream");
 const shareDailyBtn = document.getElementById("shareDaily");
-const resetDailyBtn = document.getElementById("resetDaily");
 
 const novelSection = document.querySelector(".novel");
 const novelText = document.getElementById("novelText");
@@ -170,9 +169,9 @@ function freeUndo() {
 }
 
 function freeReset() {
+  state.free.keystrokes += 1;
   state.free.text = "";
   state.free.history = [];
-  state.free.keystrokes = 0;
   saveFree();
   render();
 }
@@ -310,7 +309,7 @@ function renderFreeUI() {
     : 0;
   stats.textContent = `${chars} chars • ${words} words • ${state.free.keystrokes} keystrokes`;
   undoBtn.disabled = state.free.history.length === 0;
-  resetBtn.disabled = true;
+  resetBtn.disabled = false;
   positionCaretAtEnd();
 }
 
@@ -331,8 +330,20 @@ function renderDailyUI() {
     }
     dailyProgressEl.appendChild(slot);
   }
-  // stream
-  dailyStreamEl.textContent = state.daily.stream;
+  // stream slots
+  dailyStreamEl.innerHTML = "";
+  const streamWindow = state.daily.stream.slice(-state.daily.word.length);
+  for (let i = 0; i < state.daily.word.length; i++) {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    if (i < streamWindow.length) {
+      slot.textContent = streamWindow[i];
+    } else {
+      slot.textContent = "•";
+      slot.classList.add("empty");
+    }
+    dailyStreamEl.appendChild(slot);
+  }
 
   // stats area reuse: show keystrokes and progress
   stats.textContent = `${state.daily.keystrokes} keystrokes • progress ${state.daily.progress}/${state.daily.word.length}`;
@@ -416,9 +427,11 @@ function handleUndo() {
 }
 
 function handleReset() {
-  if (state.mode === "daily") {
-    dailyReset();
+  if (state.mode === "free") {
+    freeReset();
+    return;
   }
+  dailyReset();
 }
 
 /* ---------- EVENTS ---------- */
@@ -460,11 +473,6 @@ shareDailyBtn.addEventListener("click", () => {
     );
 });
 
-resetDailyBtn.addEventListener("click", () => {
-  if (state.mode === "daily") {
-    dailyReset();
-  }
-});
 
 /* ---------- BOOT ---------- */
 function boot() {

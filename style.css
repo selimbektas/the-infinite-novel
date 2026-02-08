@@ -115,7 +115,7 @@ body {
   color: var(--text);
 
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1.75;
 
   padding: 6px 6px;
@@ -238,7 +238,7 @@ kbd {
 /* --- Fake caret (ChatGPT-like) --- */
 #fakeCaret {
   position: absolute;
-  z-index: 6;
+  z-index: 10;
 
   width: 2px;
   height: 1.25em;
@@ -294,7 +294,7 @@ kbd {
 
   #novelText {
     height: 52vh;
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .controls {
@@ -340,6 +340,14 @@ kbd {
   border: 1px solid var(--border);
 }
 
+.daily-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted2);
+  font-weight: 700;
+}
+
 .daily-progress {
   display: flex;
   gap: 6px;
@@ -358,17 +366,40 @@ kbd {
   letter-spacing: 0.06em;
 }
 
-.daily-stream {
-  margin-top: 8px;
-  color: var(--muted);
+.daily-word {
+  margin-top: 6px;
   font-family: var(--mono);
-  font-size: 16px;
-  white-space: pre-wrap;
-  max-height: 6.5rem;
-  overflow: auto;
-  padding: 6px;
+  letter-spacing: 0.08em;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.daily-stream {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.daily-stream .slot {
+  min-width: 34px;
+  height: 34px;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.12);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.daily-stream .slot.empty {
+  opacity: 0.35;
+}
+
+.daily-actions {
+  margin-top: 10px;
 }
 
 /* share button small */

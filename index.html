@@ -18,24 +18,20 @@
         <p>Can you write a novel with a single key?</p>
 
         <div class="mode-switch" style="margin-top: 12px;">
-          <button id="modeFree" class="btn-mode">Free</button>
           <button id="modeDaily" class="btn-mode active">
             MonkeyType (Daily)
           </button>
+          <button id="modeFree" class="btn-mode">Free</button>
         </div>
       </header>
 
       <section id="dailyPanel" class="daily-panel" style="margin-top: 12px;">
-        <div><strong>Today's word:</strong> <span id="dailyWord">—</span></div>
-        <div style="margin-top: 8px;">
-          <div id="dailyProgress" class="daily-progress"></div>
-          <div id="dailyStream" class="daily-stream" aria-live="polite"></div>
-        </div>
-        <div style="margin-top: 8px;">
+        <div class="daily-title">Bugünün kelimesi</div>
+        <div id="dailyProgress" class="daily-progress" aria-hidden="true"></div>
+        <div id="dailyWord" class="daily-word">—</div>
+        <div id="dailyStream" class="daily-stream" aria-live="polite"></div>
+        <div class="daily-actions">
           <button id="shareDaily" class="btn btn-secondary">Share</button>
-          <button id="resetDaily" class="btn btn-secondary">
-            Reset Daily
-          </button>
         </div>
       </section>
 
@@ -75,7 +71,7 @@
         Shortcuts: <kbd>Space</kbd>/<kbd>Enter</kbd> = type,
         <kbd>Backspace</kbd> = undo
         <span class="sep">•</span>
-        <span class="muted">Reset (Daily): Ctrl+Shift+X</span>
+        <span class="muted">Reset: Ctrl+Shift+X</span>
       </footer>
     </main>
 
