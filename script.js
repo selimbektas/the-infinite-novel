@@ -1,269 +1,475 @@
+/* ============================
+   MonkeyType (Free + Daily)
+   script.js (merged)
+   ============================ */
+
 "use strict";
 
-/* ================= CONFIG ================= */
-
+/* ---------- CONFIG ---------- */
+// tiny daily word list (örnek). Genişlet/yerine words.json kullanabilirsin.
 const DAILY_WORDS = [
-  "KOD","GUN","RITIM","KARANLIK","ROMAN",
-  "MAYMUN","KELIME","RASTGELE","SABIR","SANS"
+  "KOD",
+  "GUN",
+  "RITIM",
+  "KARANLIK",
+  "ROMAN",
+  "MAYMUN",
+  "KELIME",
+  "RASTGELE",
+  "SABIR",
+  "SANS",
 ];
 
+// start date for rotating daily word
 const START_DATE = new Date("2026-01-01T00:00:00Z");
 
-const KEY_FREE = "monkeytype:free:final";
-const KEY_DAILY = "monkeytype:daily:final:";
+// persistence keys
+const KEY_FREE = "monkeytype:free:v1";
+const KEY_DAILY_PREFIX = "monkeytype:daily:";
 
-/* ================= STATE ================= */
-
+/* ---------- STATE ---------- */
 const state = {
-  mode: "daily",
-  free: { text:"", history:[], keystrokes:0 },
-  daily: { word:"", progress:0, keystrokes:0, history:[], finished:false }
+  mode: "free", // 'free' or 'daily'
+  // free-mode
+  free: {
+    text: "",
+    history: [],
+    keystrokes: 0,
+  },
+  // daily-mode (per day object)
+  daily: {
+    word: "",
+    stream: "", // all typed chars (visible)
+    history: [], // chars stack for undo
+    progress: 0, // how many letters of word matched (prefix)
+    keystrokes: 0,
+    finished: false,
+  },
 };
 
-/* ================= DOM ================= */
+/* ---------- DOM ---------- */
+const modeFreeBtn = document.getElementById("modeFree");
+const modeDailyBtn = document.getElementById("modeDaily");
+const dailyPanel = document.getElementById("dailyPanel");
+const dailyWordEl = document.getElementById("dailyWord");
+const dailyProgressEl = document.getElementById("dailyProgress");
+const dailyStreamEl = document.getElementById("dailyStream");
+const shareDailyBtn = document.getElementById("shareDaily");
+const resetDailyBtn = document.getElementById("resetDaily");
 
 const novelText = document.getElementById("novelText");
-const fakeCaret = document.getElementById("fakeCaret");
-
 const typeBtn = document.getElementById("typeBtn");
 const undoBtn = document.getElementById("undoBtn");
 const resetBtn = document.getElementById("resetBtn");
-const shareBtn = document.getElementById("shareDaily");
-
 const stats = document.getElementById("stats");
+const lastCharEl = document.getElementById("lastChar");
+const fakeCaret = document.getElementById("fakeCaret");
 
-const modeDailyBtn = document.getElementById("modeDaily");
-const modeFreeBtn = document.getElementById("modeFree");
-
-const dailyPanel = document.getElementById("dailyPanel");
-const dailyWordEl = document.getElementById("dailyWord");
-const dailyProgEl = document.getElementById("dailyProgress");
-
-/* ================= DATE ================= */
-
-function todayIndex(){
+/* ---------- UTIL ---------- */
+function todayKey() {
   const now = new Date();
-  return Math.floor(
-    (Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()) -
-     Date.UTC(START_DATE.getUTCFullYear(),START_DATE.getUTCMonth(),START_DATE.getUTCDate()))
-     / 86400000
+  const dayIndex = Math.floor(
+    (Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) -
+      Date.UTC(
+        START_DATE.getUTCFullYear(),
+        START_DATE.getUTCMonth(),
+        START_DATE.getUTCDate()
+      )) /
+      86400000
   );
+  return dayIndex;
 }
 
-function wordForToday(){
-  return DAILY_WORDS[todayIndex() % DAILY_WORDS.length].toUpperCase();
+function wordForToday() {
+  const idx = todayKey() % DAILY_WORDS.length;
+  return DAILY_WORDS[idx].toUpperCase();
 }
 
-/* ================= STORAGE ================= */
+function saveFree() {
+  try {
+    localStorage.setItem(KEY_FREE, JSON.stringify(state.free));
+  } catch (_) {}
+}
 
-function saveFree(){ localStorage.setItem(KEY_FREE, JSON.stringify(state.free)); }
-function loadFree(){ return JSON.parse(localStorage.getItem(KEY_FREE)||"null"); }
+function loadFree() {
+  try {
+    const raw = localStorage.getItem(KEY_FREE);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
 
-function dailyKey(){ return KEY_DAILY + new Date().toISOString().slice(0,10); }
-function saveDaily(){ localStorage.setItem(dailyKey(), JSON.stringify(state.daily)); }
-function loadDaily(){ return JSON.parse(localStorage.getItem(dailyKey())||"null"); }
+function saveDailyFor(dateKey) {
+  try {
+    localStorage.setItem(KEY_DAILY_PREFIX + dateKey, JSON.stringify(state.daily));
+  } catch (_) {}
+}
 
-/* ================= MODE ================= */
+function loadDailyFor(dateKey) {
+  try {
+    const raw = localStorage.getItem(KEY_DAILY_PREFIX + dateKey);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
 
-function setMode(m){
+/* ---------- MODE SWITCH ---------- */
+function setMode(m) {
   state.mode = m;
-
-  modeDailyBtn.classList.toggle("active", m==="daily");
-  modeFreeBtn.classList.toggle("active", m==="free");
-
-  dailyPanel.style.display = m==="daily" ? "block":"none";
-  novelText.style.display = m==="free" ? "block":"none";
-  fakeCaret.style.display = m==="free" ? "block":"none";
-  shareBtn.style.display = m==="daily" ? "inline-block":"none";
-
-  render();
-}
-
-modeDailyBtn.onclick=()=>setMode("daily");
-modeFreeBtn.onclick=()=>setMode("free");
-
-/* ================= RANDOM ================= */
-
-const letters="abcçdefgğhıijklmnoöprsştuüvyz";
-const lettersU=letters.toUpperCase();
-
-function rc(str){ return str[Math.floor(Math.random()*str.length)]; }
-
-function randomFreeChar(){
-  const r=Math.random();
-  if(r<0.75) return Math.random()<0.1?rc(lettersU):rc(letters);
-  if(r<0.88) return " ";
-  if(r<0.97) return rc(".,;:!?");
-  return "\n";
-}
-
-const DAILY_ALPHA="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-function randomDailyChar(){
-  return rc(DAILY_ALPHA);
-}
-
-/* ================= FREE MODE ================= */
-
-function freeType(ch){
-  state.free.text+=ch;
-  state.free.history.push(ch);
-  state.free.keystrokes++;
-  saveFree();
-}
-
-function freeUndo(){
-  if(!state.free.history.length) return;
-  const c=state.free.history.pop();
-  state.free.text=state.free.text.slice(0,-c.length);
-  state.free.keystrokes++;
-  saveFree();
-}
-
-function freeReset(){
-  state.free={text:"",history:[],keystrokes:0};
-  saveFree();
-}
-
-/* ================= DAILY MODE ================= */
-
-function dailyInit(){
-  const w=wordForToday();
-  const loaded=loadDaily();
-
-  if(loaded && loaded.word===w){
-    state.daily=loaded;
-  }else{
-    state.daily={word:w,progress:0,keystrokes:0,history:[],finished:false};
-    saveDaily();
-  }
-}
-
-function dailyType(ch){
-  if(state.daily.finished) return;
-
-  state.daily.keystrokes++;
-
-  const expected = state.daily.word[state.daily.progress];
-
-  if(ch === expected){
-    state.daily.progress++;
-    state.daily.history.push(true);
+  if (m === "free") {
+    modeFreeBtn.classList.add("active");
+    modeDailyBtn.classList.remove("active");
+    dailyPanel.style.display = "none";
+    novelText.style.display = "block";
   } else {
-    state.daily.history.push(false);
+    modeFreeBtn.classList.remove("active");
+    modeDailyBtn.classList.add("active");
+    dailyPanel.style.display = "block";
+    novelText.style.display = "none";
+  }
+  render();
+}
+
+modeFreeBtn.addEventListener("click", () => setMode("free"));
+modeDailyBtn.addEventListener("click", () => setMode("daily"));
+
+/* ---------- FREE MODE (basit, mevcut davranış) ---------- */
+function freeTypeChar(ch) {
+  state.free.text += ch;
+  state.free.history.push(ch);
+  state.free.keystrokes += 1;
+
+  if (lastCharEl) {
+    lastCharEl.textContent = ch === "\n" ? "↵" : ch;
+    lastCharEl.style.display = "inline-flex";
+    clearTimeout(freeTypeChar._t);
+    freeTypeChar._t = setTimeout(() => {
+      lastCharEl.style.display = "none";
+    }, 250);
+  }
+  saveFree();
+  render();
+}
+
+function freeUndo() {
+  if (state.free.history.length === 0) return;
+  const last = state.free.history.pop();
+  state.free.text = state.free.text.slice(0, -last.length);
+  state.free.keystrokes += 1;
+  saveFree();
+  render();
+}
+
+function freeReset() {
+  state.free.text = "";
+  state.free.history = [];
+  state.free.keystrokes = 0;
+  saveFree();
+  render();
+}
+
+/* ---------- DAILY MODE ---------- */
+/* Daily rules:
+   - word is visible
+   - every generated char appended to stream
+   - if a generated char equals word[progress], then progress++ (prefix matched)
+   - undo pops last char from stream and reverts progress if necessary
+   - goal: reach progress == word.length with minimum keystrokes
+*/
+
+function dailyInit() {
+  const w = wordForToday();
+  state.daily.word = w;
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const loaded = loadDailyFor(dayKey);
+  if (loaded && loaded.word === w) {
+    // restore
+    state.daily = Object.assign(state.daily, loaded);
+  } else {
+    // fresh
+    state.daily.stream = "";
+    state.daily.history = [];
+    state.daily.progress = 0;
+    state.daily.keystrokes = 0;
+    state.daily.finished = false;
+    saveDailyFor(dayKey);
+  }
+}
+
+function dailyTypeChar(ch) {
+  if (state.daily.finished) return;
+  state.daily.stream += ch;
+  state.daily.history.push(ch);
+  state.daily.keystrokes += 1;
+
+  // if correct next char, advance progress
+  const expected = state.daily.word.charAt(state.daily.progress);
+  if (ch === expected) {
+    state.daily.progress += 1;
   }
 
-  if(state.daily.progress === state.daily.word.length){
-    state.daily.finished=true;
-    setTimeout(()=>alert(`Score: ${state.daily.keystrokes}`),50);
+  // check win
+  if (state.daily.progress >= state.daily.word.length) {
+    state.daily.finished = true;
   }
 
-  saveDaily();
+  saveDailyFor(new Date().toISOString().slice(0, 10));
+  render();
 }
 
-function dailyUndo(){
-  if(!state.daily.history.length) return;
-  const ok = state.daily.history.pop();
-  state.daily.keystrokes++;
-  if(ok && state.daily.progress>0) state.daily.progress--;
-  state.daily.finished=false;
-  saveDaily();
+function dailyUndo() {
+  if (state.daily.history.length === 0) return;
+  const last = state.daily.history.pop();
+  state.daily.stream = state.daily.stream.slice(0, -last.length);
+  state.daily.keystrokes += 1;
+
+  // if last char was part of progress (i.e., it matched the char at progress-1),
+  // we need to recompute progress conservatively: recompute by scanning stream
+  const w = state.daily.word;
+  let p = 0;
+  for (let i = 0; i < state.daily.stream.length; i++) {
+    if (state.daily.stream[i] === w[p]) p++;
+    if (p >= w.length) break;
+  }
+  state.daily.progress = p;
+  state.daily.finished = p >= w.length;
+
+  saveDailyFor(new Date().toISOString().slice(0, 10));
+  render();
 }
 
-function dailyReset(){
-  state.daily.progress=0;
-  state.daily.keystrokes=0;
-  state.daily.history=[];
-  state.daily.finished=false;
-  saveDaily();
+function dailyReset() {
+  state.daily.stream = "";
+  state.daily.history = [];
+  state.daily.progress = 0;
+  state.daily.keystrokes = 0;
+  state.daily.finished = false;
+  saveDailyFor(new Date().toISOString().slice(0, 10));
+  render();
 }
 
-/* ================= CARET ================= */
+/* ---------- RANDOM GENERATOR (shared) ---------- */
+// Use previous random char generator (lighter)
+const lettersLower = "abcçdefgğhıijklmnoöprsştuüvyz";
+const lettersUpper = lettersLower.toUpperCase();
+const punctuation = [".", ",", ";", ":", "!", "?", "…"];
+const rareSymbols = ["—", "“", "”", "(", ")", "[", "]"];
 
-function caret(){
-  if(state.mode!=="free") return;
-  fakeCaret.style.opacity="1";
+function weightedPick(items) {
+  const total = items.reduce((s, i) => s + i.weight, 0);
+  let r = Math.random() * total;
+  for (const it of items) {
+    r -= it.weight;
+    if (r <= 0) return it.value;
+  }
+  return items[items.length - 1].value;
 }
 
-/* ================= RENDER ================= */
-
-function renderFree(){
-  novelText.value=state.free.text;
-  const chars=state.free.text.length;
-  const words=state.free.text.trim()?state.free.text.trim().split(/\s+/).length:0;
-  stats.textContent=`${chars} chars • ${words} words • ${state.free.keystrokes}`;
-  caret();
+function generateRandomChar() {
+  const cat = weightedPick([
+    { value: "letter", weight: 70 },
+    { value: "space", weight: 12 },
+    { value: "punct", weight: 14 },
+    { value: "newline", weight: 2 },
+    { value: "rare", weight: 2 },
+  ]);
+  switch (cat) {
+    case "letter":
+      return Math.random() < 0.1
+        ? lettersUpper[Math.floor(Math.random() * lettersUpper.length)]
+        : lettersLower[Math.floor(Math.random() * lettersLower.length)];
+    case "space":
+      return " ";
+    case "punct":
+      return punctuation[Math.floor(Math.random() * punctuation.length)];
+    case "newline":
+      return "\n";
+    case "rare":
+      return rareSymbols[Math.floor(Math.random() * rareSymbols.length)];
+    default:
+      return " ";
+  }
 }
 
-function renderDaily(){
-  dailyWordEl.textContent=state.daily.word;
-  dailyProgEl.innerHTML="";
+/* ---------- RENDER ---------- */
+function renderFreeUI() {
+  novelText.value = state.free.text;
+  // caret & stats reused
+  const chars = state.free.text.length;
+  const words = state.free.text.trim()
+    ? state.free.text.trim().split(/\s+/).length
+    : 0;
+  stats.textContent = `${chars} chars • ${words} words • ${state.free.keystrokes} keystrokes`;
+  undoBtn.disabled = state.free.history.length === 0;
+  positionCaretAtEnd();
+}
 
-  for(let i=0;i<state.daily.word.length;i++){
-    const d=document.createElement("div");
-    d.className="slot";
-    if(i<state.daily.progress){
-      d.textContent=state.daily.word[i];
-      d.style.background="#b9f8b0";
+function renderDailyUI() {
+  // show word
+  dailyWordEl.textContent = state.daily.word;
+  // progress slots
+  dailyProgressEl.innerHTML = "";
+  for (let i = 0; i < state.daily.word.length; i++) {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    if (i < state.daily.progress) {
+      slot.textContent = state.daily.word[i];
+      slot.style.background = "linear-gradient(180deg,#d9ffd6,#b9f8b0)";
     } else {
-      d.textContent="•";
-      d.style.opacity=.35;
+      slot.textContent = "•";
+      slot.style.opacity = "0.35";
     }
-    dailyProgEl.appendChild(d);
+    dailyProgressEl.appendChild(slot);
+  }
+  // stream
+  dailyStreamEl.textContent = state.daily.stream || "(no input yet)";
+
+  // stats area reuse: show keystrokes and progress
+  stats.textContent = `${state.daily.keystrokes} keystrokes • progress ${state.daily.progress}/${state.daily.word.length}`;
+  undoBtn.disabled = state.daily.history.length === 0;
+}
+
+/* shared render */
+function render() {
+  if (state.mode === "free") {
+    renderFreeUI();
+  } else {
+    renderDailyUI();
+  }
+}
+
+/* ---------- CARET (mirror method - stable) ---------- */
+function positionCaretAtEnd() {
+  if (!fakeCaret) return;
+  // We will measure textarea only when free mode visible
+  if (state.mode !== "free") {
+    fakeCaret.style.opacity = "0";
+    return;
   }
 
-  stats.textContent=
-    `${state.daily.keystrokes} strokes • ${state.daily.progress}/${state.daily.word.length}`;
+  const novel = document.querySelector(".novel");
+  if (!novel || !novelText) return;
+  const taRect = novelText.getBoundingClientRect();
+  const novelRect = novel.getBoundingClientRect();
+  const s = getComputedStyle(novelText);
+
+  const mirror = document.createElement("div");
+  mirror.setAttribute("aria-hidden", "true");
+  mirror.style.position = "fixed";
+  mirror.style.left = `${taRect.left}px`;
+  mirror.style.top = `${taRect.top}px`;
+  mirror.style.width = `${taRect.width}px`;
+  mirror.style.visibility = "hidden";
+  mirror.style.pointerEvents = "none";
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.wordBreak = "break-word";
+  mirror.style.overflowWrap = "break-word";
+  mirror.style.fontFamily = s.fontFamily;
+  mirror.style.fontSize = s.fontSize;
+  mirror.style.fontWeight = s.fontWeight;
+  mirror.style.lineHeight = s.lineHeight;
+  mirror.style.padding = s.padding;
+  mirror.style.border = s.border;
+  mirror.style.boxSizing = "border-box";
+
+  mirror.textContent = state.free.text || "";
+  const anchor = document.createElement("span");
+  anchor.textContent = "\u200b";
+  mirror.appendChild(anchor);
+
+  document.body.appendChild(mirror);
+  const aRect = anchor.getBoundingClientRect();
+  const left = aRect.left - novelRect.left;
+  const top = aRect.top - novelRect.top - novelText.scrollTop;
+
+  fakeCaret.style.left = `${left}px`;
+  fakeCaret.style.top = `${top}px`;
+  fakeCaret.style.opacity = "1";
+
+  document.body.removeChild(mirror);
 }
 
-function render(){
-  if(state.mode==="free") renderFree();
-  else renderDaily();
+/* ---------- ACTION BINDINGS ---------- */
+function handleType() {
+  const ch = generateRandomChar();
+  if (state.mode === "free") {
+    freeTypeChar(ch);
+  } else {
+    dailyTypeChar(ch);
+  }
 }
 
-/* ================= ACTIONS ================= */
-
-function doType(){
-  const ch = state.mode==="daily" ? randomDailyChar() : randomFreeChar();
-  state.mode==="daily" ? dailyType(ch) : freeType(ch);
-  render();
+function handleUndo() {
+  if (state.mode === "free") freeUndo();
+  else dailyUndo();
 }
 
-function doUndo(){
-  state.mode==="daily" ? dailyUndo() : freeUndo();
-  render();
+function handleReset() {
+  if (state.mode === "free") freeReset();
+  else dailyReset();
 }
 
-function doReset(){
-  state.mode==="daily" ? dailyReset() : freeReset();
-  render();
-}
+/* ---------- EVENTS ---------- */
+typeBtn.addEventListener("click", handleType);
+undoBtn.addEventListener("click", handleUndo);
+resetBtn.addEventListener("click", handleReset);
 
-/* ================= EVENTS ================= */
-
-typeBtn.onclick=doType;
-undoBtn.onclick=doUndo;
-resetBtn.onclick=doReset;
-
-window.addEventListener("keydown",e=>{
-  if(e.key===" "||e.key==="Enter"){e.preventDefault();doType();}
-  if(e.key==="Backspace"){e.preventDefault();doUndo();}
+window.addEventListener("keydown", (e) => {
+  if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    handleType();
+    return;
+  }
+  if (e.key === "Backspace") {
+    e.preventDefault();
+    handleUndo();
+    return;
+  }
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "x") {
+    e.preventDefault();
+    handleReset();
+    return;
+  }
 });
 
-shareBtn.onclick=()=>{
-  const msg=`MonkeyType Daily\nWord: ${state.daily.word}\nScore: ${state.daily.keystrokes}`;
-  navigator.clipboard.writeText(msg);
-  alert("Copied");
-};
+novelText.addEventListener("scroll", positionCaretAtEnd);
+window.addEventListener("resize", positionCaretAtEnd);
 
-/* ================= BOOT ================= */
+/* ---------- DAILY SHARE ---------- */
+shareDailyBtn.addEventListener("click", () => {
+  if (!state.daily.word) return;
+  const score = `${state.daily.keystrokes} keystrokes`;
+  const msg = `MonkeyType — ${new Date().toISOString().slice(0, 10)}\nWord: ${state.daily.word}\nScore: ${score}\n\n${state.daily.stream}`;
+  navigator.clipboard
+    ?.writeText(msg)
+    .then(
+      () => alert("Copied results to clipboard!"),
+      () => alert("Copy failed.")
+    );
+});
 
-function boot(){
-  const f=loadFree();
-  if(f) state.free=f;
+resetDailyBtn.addEventListener("click", () => {
+  if (state.mode === "daily") {
+    dailyReset();
+  }
+});
+
+/* ---------- BOOT ---------- */
+function boot() {
+  // load free
+  const f = loadFree();
+  if (f) {
+    state.free = Object.assign(state.free, f);
+  }
+
+  // init daily
   dailyInit();
-  setMode("daily");
+
+  // default mode: free
+  setMode("free");
+  render();
 }
 
 boot();
-render();
-
