@@ -1,47 +1,86 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <title>MonkeyType — Infinite Novel</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Infinite Novel</title>
+    <meta
+      name="description"
+      content="Can you write a novel with a single key?"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
 
-  <main class="app">
+  <body>
+    <main class="wrap">
+      <header class="header">
+        <h1>The Infinite Novel — <span id="projectTag">MonkeyType</span></h1>
+        <p>Can you write a novel with a single key?</p>
 
-    <h1>🐒 MonkeyType</h1>
+        <div class="mode-switch" style="margin-top: 12px;">
+          <button id="modeFree" class="btn-mode active">Free</button>
+          <button id="modeDaily" class="btn-mode">MonkeyType (Daily)</button>
+        </div>
+      </header>
 
-    <!-- MODE SWITCH -->
-    <div class="modes">
-      <button id="modeDaily" class="mode-btn active">Daily</button>
-      <button id="modeFree" class="mode-btn">Free</button>
-    </div>
+      <section
+        id="dailyPanel"
+        class="daily-panel"
+        style="display: none; margin-top: 12px;"
+      >
+        <div><strong>Today's word:</strong> <span id="dailyWord">—</span></div>
+        <div style="margin-top: 8px;">
+          <div id="dailyProgress" class="daily-progress"></div>
+          <div id="dailyStream" class="daily-stream" aria-live="polite"></div>
+        </div>
+        <div style="margin-top: 8px;">
+          <button id="shareDaily" class="btn btn-secondary">Share</button>
+          <button id="resetDaily" class="btn btn-secondary">
+            Reset Daily
+          </button>
+        </div>
+      </section>
 
-    <!-- DAILY PANEL -->
-    <section id="dailyPanel" class="daily-panel">
-      <div class="daily-title">Word of the day</div>
-      <div id="dailyWord" class="daily-word"></div>
-      <div id="dailyProgress" class="daily-progress"></div>
-    </section>
+      <section class="novel">
+        <textarea
+          id="novelText"
+          readonly
+          spellcheck="false"
+          placeholder="Start your novel. One key at a time."
+        ></textarea>
+        <div id="fakeCaret" aria-hidden="true"></div>
+      </section>
 
-    <!-- FREE MODE TEXTAREA -->
-    <section class="novel">
-      <textarea id="novelText" readonly></textarea>
-      <div id="fakeCaret"></div>
-    </section>
+      <section class="controls">
+        <button
+          id="typeBtn"
+          class="btn btn-primary"
+          aria-label="Type random character"
+        >
+          <span class="btn-label">∞ TYPE</span>
+          <span id="lastChar" class="btn-chip" aria-hidden="true"></span>
+        </button>
 
-    <!-- CONTROLS -->
-    <section class="controls">
-      <button id="typeBtn">∞ TYPE</button>
-      <button id="undoBtn">UNDO</button>
-      <button id="resetBtn">RESET</button>
-      <button id="shareDaily">SHARE</button>
-    </section>
+        <button id="undoBtn" class="btn btn-secondary" aria-label="Undo">
+          UNDO
+        </button>
+        <button id="resetBtn" class="btn btn-secondary" aria-label="Reset">
+          RESET
+        </button>
+      </section>
 
-    <footer id="stats">0</footer>
+      <footer class="stats" id="stats">
+        0 chars • 0 words • 0 keystrokes
+      </footer>
 
-  </main>
+      <footer class="hint">
+        Shortcuts: <kbd>Space</kbd>/<kbd>Enter</kbd> = type,
+        <kbd>Backspace</kbd> = undo
+        <span class="sep">•</span>
+        <span class="muted">Reset: Ctrl+Shift+X</span>
+      </footer>
+    </main>
 
-  <script src="script.js"></script>
-</body>
+    <script src="script.js"></script>
+  </body>
 </html>
