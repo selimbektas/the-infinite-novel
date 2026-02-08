@@ -1,194 +1,286 @@
+/* =========================================================
+   THE INFINITE NOVEL
+   script.js (clean + stable)
+   ========================================================= */
+
 "use strict";
 
-/* ---------- CONFIG ---------- */
-const DAILY_WORDS = [
-  "kod","gun","ritim","karanlik","roman",
-  "maymun","kelime","rastgele","sabir","sans"
+/* ---------------------------
+   Config
+--------------------------- */
+
+// Random pool (letters + punctuation + whitespace)
+const CHAR_POOL = [
+  ..."abcdefghijklmnopqrstuvwxyz",
+  ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  ..."0123456789",
+  ..."ğüşıöçĞÜŞİÖÇ",
+  ..." .,;:!?—-()[]{}'\"/\\",
+  "\n",
 ];
 
-const START_DATE = new Date("2026-01-01T00:00:00Z");
-const KEY_FREE = "monkeytype:free:v1";
-const KEY_DAILY_PREFIX = "monkeytype:daily:";
+// localStorage key
+const STORAGE_KEY = "the-infinite-novel:v1";
 
-/* ---------- STATE ---------- */
+/* ---------------------------
+   State
+--------------------------- */
+
 const state = {
-  mode: "daily",
-  free: { text:"", history:[], keystrokes:0 },
-  daily:{ word:"", stream:"", history:[], progress:0, keystrokes:0, finished:false }
+  text: "",
+  history: [], // stack of appended chars
+  keystrokes: 0,
 };
 
-/* ---------- DOM ---------- */
-const modeFreeBtn = document.getElementById("modeFree");
-const modeDailyBtn = document.getElementById("modeDaily");
-const dailyPanel = document.getElementById("dailyPanel");
-const dailyWordEl = document.getElementById("dailyWord");
-const dailyProgressEl = document.getElementById("dailyProgress");
-const dailyStreamEl = document.getElementById("dailyStream");
-const shareDailyBtn = document.getElementById("shareDaily");
+/* ---------------------------
+   DOM
+--------------------------- */
 
 const novelText = document.getElementById("novelText");
 const typeBtn = document.getElementById("typeBtn");
 const undoBtn = document.getElementById("undoBtn");
-const resetBtn = document.getElementById("resetBtn");
+const resetBtn = document.getElementById("resetBtn"); // optional
 const stats = document.getElementById("stats");
+const lastCharEl = document.getElementById("lastChar");
+const fakeCaret = document.getElementById("fakeCaret");
 
-/* ---------- UTIL ---------- */
-function todayIndex(){
-  return Math.floor((Date.now()-START_DATE)/86400000);
-}
-function todayKey(){
-  return new Date().toISOString().slice(0,10);
-}
-function wordForToday(){
-  return DAILY_WORDS[todayIndex()%DAILY_WORDS.length];
-}
+/* ---------------------------
+   Utils
+--------------------------- */
 
-/* ---------- STORAGE ---------- */
-function saveFree(){ localStorage.setItem(KEY_FREE,JSON.stringify(state.free)); }
-function loadFree(){ return JSON.parse(localStorage.getItem(KEY_FREE)||"null"); }
-
-function saveDaily(){
-  localStorage.setItem(KEY_DAILY_PREFIX+todayKey(),JSON.stringify(state.daily));
-}
-function loadDaily(){
-  return JSON.parse(localStorage.getItem(KEY_DAILY_PREFIX+todayKey())||"null");
+function pickRandomChar() {
+  const idx = Math.floor(Math.random() * CHAR_POOL.length);
+  return CHAR_POOL[idx];
 }
 
-/* ---------- MODE ---------- */
-function setMode(m){
-  state.mode=m;
-  dailyPanel.style.display = m==="daily"?"block":"none";
-  novelText.style.display = m==="free"?"block":"none";
+function countWords(str) {
+  const trimmed = str.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).filter(Boolean).length;
+}
+
+function escapeVisibleChar(ch) {
+  if (ch === "\n") return "↵";
+  if (ch === " ") return "␠";
+  if (ch === "\t") return "⇥";
+  return ch;
+}
+
+/* ---------------------------
+   Persistence
+--------------------------- */
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (_) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) {
+    return null;
+  }
+}
+
+/* ---------------------------
+   Caret (fake)
+   - Mirrors textarea to measure where the text ends
+   - Supports wrapping + scroll
+--------------------------- */
+
+function positionCaretAtEnd() {
+  if (!fakeCaret || !novelText) return;
+
+  const novel = document.querySelector(".novel");
+  if (!novel) return;
+
+  const taRect = novelText.getBoundingClientRect();
+  const novelRect = novel.getBoundingClientRect();
+  const s = getComputedStyle(novelText);
+
+  const mirror = document.createElement("div");
+  mirror.setAttribute("aria-hidden", "true");
+
+  // place mirror exactly on top of textarea (viewport coordinates)
+  mirror.style.position = "fixed";
+  mirror.style.left = `${taRect.left}px`;
+  mirror.style.top = `${taRect.top}px`;
+  mirror.style.width = `${taRect.width}px`;
+
+  mirror.style.visibility = "hidden";
+  mirror.style.pointerEvents = "none";
+
+  // match textarea behavior
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.wordBreak = "break-word";
+  mirror.style.overflowWrap = "break-word";
+
+  mirror.style.fontFamily = s.fontFamily;
+  mirror.style.fontSize = s.fontSize;
+  mirror.style.fontWeight = s.fontWeight;
+  mirror.style.lineHeight = s.lineHeight;
+
+  mirror.style.padding = s.padding;
+  mirror.style.border = s.border;
+  mirror.style.boxSizing = "border-box";
+
+  // same text
+  mirror.textContent = novelText.value;
+
+  // anchor at the end
+  const anchor = document.createElement("span");
+  anchor.textContent = "\u200b";
+  mirror.appendChild(anchor);
+
+  document.body.appendChild(mirror);
+
+  const aRect = anchor.getBoundingClientRect();
+
+  // convert viewport coords -> .novel local coords
+  const left = aRect.left - novelRect.left;
+  const top = aRect.top - novelRect.top - novelText.scrollTop;
+
+  fakeCaret.style.left = `${left}px`;
+  fakeCaret.style.top = `${top}px`;
+  fakeCaret.style.opacity = "1";
+
+  document.body.removeChild(mirror);
+}
+
+function caretFlash() {
+  if (!fakeCaret) return;
+  fakeCaret.classList.remove("flash");
+  // force reflow
+  void fakeCaret.offsetWidth;
+  fakeCaret.classList.add("flash");
+}
+
+/* ---------------------------
+   Render
+--------------------------- */
+
+function render() {
+  novelText.value = state.text;
+
+  // stats
+  const chars = state.text.length;
+  const words = countWords(state.text);
+
+  stats.textContent = `${chars} chars • ${words} words • ${state.keystrokes} keystrokes`;
+
+  // undo button enabled?
+  undoBtn.disabled = state.history.length === 0;
+
+  // caret
+  positionCaretAtEnd();
+}
+
+/* ---------------------------
+   Actions
+--------------------------- */
+
+function typeChar() {
+  const ch = pickRandomChar();
+
+  state.text += ch;
+  state.history.push(ch);
+  state.keystrokes += 1;
+
+  // last char chip
+  if (lastCharEl) {
+    lastCharEl.textContent = escapeVisibleChar(ch);
+    lastCharEl.style.display = "inline-flex";
+  }
+
+  saveState();
   render();
-}
-modeFreeBtn.onclick=()=>setMode("free");
-modeDailyBtn.onclick=()=>setMode("daily");
+  caretFlash();
 
-/* ---------- FREE ---------- */
-function freeType(ch){
-  state.free.text+=ch;
-  state.free.history.push(ch);
-  state.free.keystrokes++;
-  saveFree();
-}
-function freeUndo(){
-  if(!state.free.history.length) return;
-  const c=state.free.history.pop();
-  state.free.text=state.free.text.slice(0,-c.length);
-  state.free.keystrokes++;
-  saveFree();
-}
-function freeReset(){
-  state.free.text="";
-  state.free.history=[];
-  state.free.keystrokes++; // reset counts
-  saveFree();
+  // keep view at bottom-ish (optional)
+  // novelText.scrollTop = novelText.scrollHeight;
 }
 
-/* ---------- DAILY ---------- */
-function dailyInit(){
-  const w=wordForToday();
-  const saved=loadDaily();
-  if(saved && saved.word===w){ state.daily=saved; return; }
-  state.daily={word:w,stream:"",history:[],progress:0,keystrokes:0,finished:false};
-  saveDaily();
-}
+function undo() {
+  if (state.history.length === 0) return;
 
-function dailyType(ch){
-  if(state.daily.finished) return;
-  state.daily.keystrokes++;
-  state.daily.stream+=ch;
-  state.daily.history.push(ch);
+  const last = state.history.pop();
+  state.text = state.text.slice(0, -last.length);
 
-  if(ch===state.daily.word[state.daily.progress]){
-    state.daily.progress++;
-  }
-  if(state.daily.progress===state.daily.word.length){
-    state.daily.finished=true;
-    setTimeout(()=>alert("Score: "+state.daily.keystrokes),50);
-  }
-  saveDaily();
-}
+  state.keystrokes += 1;
 
-function dailyUndo(){
-  if(!state.daily.history.length) return;
-  state.daily.history.pop();
-  state.daily.stream=state.daily.stream.slice(0,-1);
-  state.daily.keystrokes++;
-
-  let p=0;
-  for(const c of state.daily.stream){
-    if(c===state.daily.word[p]) p++;
-  }
-  state.daily.progress=p;
-  state.daily.finished=p===state.daily.word.length;
-  saveDaily();
-}
-
-function dailyReset(){
-  state.daily.stream="";
-  state.daily.history=[];
-  state.daily.progress=0;
-  state.daily.keystrokes++;
-  state.daily.finished=false;
-  saveDaily();
-}
-
-/* ---------- RNG ---------- */
-const FREE_CHARS="abcçdefgğhıijklmnoöprsştuüvyz .,!?";
-const DAILY_ALPHA="abcdefghijklmnopqrstuvwxyz";
-const pick=s=>s[Math.floor(Math.random()*s.length)];
-
-/* ---------- ACTIONS ---------- */
-function doType(){
-  const ch = state.mode==="daily"?pick(DAILY_ALPHA):pick(FREE_CHARS);
-  state.mode==="daily"?dailyType(ch):freeType(ch);
+  saveState();
   render();
+  caretFlash();
 }
-function doUndo(){ state.mode==="daily"?dailyUndo():freeUndo(); render(); }
-function doReset(){ state.mode==="daily"?dailyReset():freeReset(); render(); }
 
-/* ---------- RENDER ---------- */
-function render(){
-  if(state.mode==="free"){
-    novelText.value=state.free.text;
-    novelText.selectionStart=novelText.selectionEnd=novelText.value.length;
-    stats.textContent=`${state.free.text.length} chars • ${state.free.keystrokes} strokes`;
+function resetAll() {
+  state.text = "";
+  state.history = [];
+  state.keystrokes = 0;
+
+  if (lastCharEl) {
+    lastCharEl.textContent = "";
+    lastCharEl.style.display = "none";
+  }
+
+  saveState();
+  render();
+  caretFlash();
+}
+
+/* ---------------------------
+   Events
+--------------------------- */
+
+// buttons
+typeBtn.addEventListener("click", typeChar);
+undoBtn.addEventListener("click", undo);
+
+if (resetBtn) {
+  resetBtn.addEventListener("click", resetAll);
+}
+
+// scroll + resize
+novelText.addEventListener("scroll", positionCaretAtEnd);
+window.addEventListener("resize", positionCaretAtEnd);
+
+// keyboard shortcuts
+window.addEventListener("keydown", (e) => {
+  // type
+  if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    typeChar();
     return;
   }
 
-  dailyWordEl.textContent=state.daily.word;
-  dailyProgressEl.innerHTML="";
-  for(let i=0;i<state.daily.word.length;i++){
-    const d=document.createElement("div");
-    d.className="slot";
-    d.textContent = i<state.daily.progress?state.daily.word[i]:"•";
-    dailyProgressEl.appendChild(d);
+  // undo
+  if (e.key === "Backspace") {
+    e.preventDefault();
+    undo();
+    return;
   }
-  dailyStreamEl.textContent=state.daily.stream;
-  stats.textContent=`${state.daily.keystrokes} strokes • ${state.daily.progress}/${state.daily.word.length}`;
+
+  // reset: Ctrl+Shift+X
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "x") {
+    e.preventDefault();
+    resetAll();
+    return;
+  }
+});
+
+/* ---------------------------
+   Boot
+--------------------------- */
+
+const loaded = loadState();
+if (loaded) {
+  state.text = typeof loaded.text === "string" ? loaded.text : "";
+  state.history = Array.isArray(loaded.history) ? loaded.history : [];
+  state.keystrokes = Number.isFinite(loaded.keystrokes) ? loaded.keystrokes : 0;
 }
 
-/* ---------- EVENTS ---------- */
-typeBtn.onclick=doType;
-undoBtn.onclick=doUndo;
-resetBtn.onclick=doReset;
-
-window.onkeydown=e=>{
-  if(e.key===" "||e.key==="Enter"){e.preventDefault();doType();}
-  if(e.key==="Backspace"){e.preventDefault();doUndo();}
-};
-
-/* ---------- SHARE ---------- */
-shareDailyBtn.onclick=()=>{
-  navigator.clipboard.writeText(
-    `MonkeyType ${todayKey()} score: ${state.daily.keystrokes}`
-  );
-};
-
-/* ---------- BOOT ---------- */
-(function(){
-  const f=loadFree(); if(f) state.free=f;
-  dailyInit();
-  setMode("daily");
-})();
+render();
