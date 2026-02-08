@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Infinite Novel</title>
+    <title>MonkeyType</title>
     <meta
       name="description"
       content="Can you write a novel with a single key?"
@@ -14,32 +14,53 @@
   <body>
     <main class="wrap">
       <header class="header">
-        <h1>The Infinite Novel</h1>
+        <h1>MonkeyType</h1>
         <p>Can you write a novel with a single key?</p>
+
+        <div class="mode-switch" style="margin-top: 12px;">
+          <button id="modeDaily" class="btn-mode active">
+            MonkeyType (Daily)
+          </button>
+          <button id="modeFree" class="btn-mode">Free</button>
+        </div>
       </header>
 
-<section class="novel">
-  <textarea id="novelText" readonly spellcheck="false"></textarea>
-  <div id="fakeCaret" aria-hidden="true"></div>
-</section>
+      <section id="dailyPanel" class="daily-panel" style="margin-top: 12px;">
+        <div class="daily-title">Bugünün kelimesi</div>
+        <div id="dailyProgress" class="daily-progress" aria-hidden="true"></div>
+        <div id="dailyWord" class="daily-word">—</div>
+        <div id="dailyStream" class="daily-stream" aria-live="polite"></div>
+        <div class="daily-actions">
+          <button id="shareDaily" class="btn btn-secondary">Share</button>
+        </div>
+      </section>
 
+      <section class="novel" style="display: none;">
+        <textarea
+          id="novelText"
+          readonly
+          spellcheck="false"
+          placeholder="Start your story. One key at a time."
+        ></textarea>
+        <div id="fakeCaret" aria-hidden="true"></div>
+      </section>
 
-     <section class="controls">
-  <button id="typeBtn" class="btn btn-primary" aria-label="Type random character">
-    <span class="btn-label">∞ TYPE</span>
-    <span id="lastChar" class="btn-chip" aria-hidden="true"></span>
-  </button>
+      <section class="controls">
+        <button
+          id="typeBtn"
+          class="btn btn-primary"
+          aria-label="Type random character"
+        >
+          <span class="btn-label">∞ TYPE</span>
+          <span id="lastChar" class="btn-chip" aria-hidden="true"></span>
+        </button>
 
-  <button id="undoBtn" class="btn btn-secondary" aria-label="Undo">
-    UNDO
-  </button>
-
-  <button id="resetBtn" class="btn btn-secondary" aria-label="Reset">
-    RESET
-  </button>
-</section>
-
-
+        <button id="undoBtn" class="btn btn-secondary" aria-label="Undo">
+          UNDO
+        </button>
+        <button id="resetBtn" class="btn btn-secondary" aria-label="Reset">
+          RESET
+        </button>
       </section>
 
       <footer class="stats" id="stats">
@@ -47,9 +68,10 @@
       </footer>
 
       <footer class="hint">
-        Shortcuts: <kbd>Space</kbd>/<kbd>Enter</kbd> = type, <kbd>Backspace</kbd> = undo
+        Shortcuts: <kbd>Space</kbd>/<kbd>Enter</kbd> = type,
+        <kbd>Backspace</kbd> = undo
         <span class="sep">•</span>
-        <span class="muted">Reset: Ctrl+Shift+R</span>
+        <span class="muted">Reset: Ctrl+Shift+X</span>
       </footer>
     </main>
 
