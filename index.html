@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Infinite Novel</title>
+    <title>Monkey Type</title>
     <meta
       name="description"
       content="Can you write a novel with a single key?"
@@ -14,12 +14,12 @@
   <body>
     <main class="wrap">
       <header class="header">
-        <h1>The Infinite Novel — <span id="projectTag">MonkeyType</span></h1>
-        <p>Can you write a novel with a single key?</p>
+        <h1>The Monkey Type — <span id="projectTag">MonkeyType</span></h1>
+        <p>Tek tuşla yazabilir misin?</p>
 
         <div class="mode-switch" style="margin-top: 12px;">
-          <button id="modeFree" class="btn-mode active">Free</button>
-          <button id="modeDaily" class="btn-mode">MonkeyType (Daily)</button>
+          <button id="modeFree" class="btn-mode active">Serbest Yazım</button>
+          <button id="modeDaily" class="btn-mode">Günlük Oyun</button>
         </div>
       </header>
 
@@ -28,7 +28,7 @@
         class="daily-panel"
         style="display: none; margin-top: 12px;"
       >
-        <div><strong>Today's word:</strong> <span id="dailyWord">—</span></div>
+        <div><strong>Günün Kelimesi:</strong> <span id="dailyWord">—</span></div>
         <div style="margin-top: 8px;">
           <div id="dailyProgress" class="daily-progress"></div>
           <div id="dailyStream" class="daily-stream" aria-live="polite"></div>
@@ -46,7 +46,7 @@
           id="novelText"
           readonly
           spellcheck="false"
-          placeholder="Start your novel. One key at a time."
+          placeholder="Bütün hikayeler ilk harfi bulduğunuzda başlar."
         ></textarea>
         <div id="fakeCaret" aria-hidden="true"></div>
       </section>
