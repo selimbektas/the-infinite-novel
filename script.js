@@ -82,7 +82,7 @@ function todayKey() {
 
 function wordForToday() {
   const idx = todayKey() % DAILY_WORDS.length;
-  return DAILY_WORDS[idx].toUpperCase();
+  return DAILY_WORDS[idx].toLowerCase();
 }
 
 function saveFree() {
@@ -206,7 +206,7 @@ function dailyTypeChar(ch) {
 
   // if correct next char, advance progress
   const expected = state.daily.word.charAt(state.daily.progress);
-  if (ch === expected) {
+  if (ch.toLowerCase() === expected) {
     state.daily.progress += 1;
   }
 
@@ -292,6 +292,14 @@ function generateRandomChar() {
       return " ";
   }
 }
+const DAILY_ALPHA = "abcdefghijklmnopqrstuvwxyz";
+
+function generateDailyChar(){
+  return DAILY_ALPHA[
+    Math.floor(Math.random() * DAILY_ALPHA.length)
+  ];
+}
+
 
 /* ---------- RENDER ---------- */
 function renderFreeUI() {
@@ -393,7 +401,9 @@ function positionCaretAtEnd() {
 
 /* ---------- ACTION BINDINGS ---------- */
 function handleType() {
-  const ch = generateRandomChar();
+  const ch = state.mode === "daily"
+  ? generateDailyChar()
+  : generateRandomChar();
   if (state.mode === "free") {
     freeTypeChar(ch);
   } else {
@@ -406,10 +416,25 @@ function handleUndo() {
   else dailyUndo();
 }
 
-function handleReset() {
-  if (state.mode === "free") freeReset();
-  else dailyReset();
+function freeReset(){
+  state.free.keystrokes++; // ekle
+  state.free.text="";
+  state.free.history=[];
+  saveFree();
 }
+
+function dailyReset(){
+  state.daily.keystrokes++; // ekle
+  state.daily.progress=0;
+  state.daily.history=[];
+  saveDaily();
+}
+
+function dailyKey(){
+  return new Date().toISOString().slice(0,10);
+}
+localStorage.setItem("daily:"+dailyKey(), JSON.stringify(state.daily));
+
 
 /* ---------- EVENTS ---------- */
 typeBtn.addEventListener("click", handleType);
@@ -432,6 +457,8 @@ window.addEventListener("keydown", (e) => {
     handleReset();
     return;
   }
+   if(ch.toLowerCase() === expected)
+
 });
 
 novelText.addEventListener("scroll", positionCaretAtEnd);
@@ -468,7 +495,7 @@ function boot() {
   dailyInit();
 
   // default mode: free
-  setMode("free");
+ setMode("daily");
   render();
 }
 
