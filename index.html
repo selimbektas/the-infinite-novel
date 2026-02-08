@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Infinite Novel</title>
+    <title>MonkeyType</title>
     <meta
       name="description"
       content="Can you write a novel with a single key?"
@@ -14,20 +14,18 @@
   <body>
     <main class="wrap">
       <header class="header">
-        <h1>The Infinite Novel — <span id="projectTag">MonkeyType</span></h1>
+        <h1>MonkeyType</h1>
         <p>Can you write a novel with a single key?</p>
 
         <div class="mode-switch" style="margin-top: 12px;">
-          <button id="modeFree" class="btn-mode active">Free</button>
-          <button id="modeDaily" class="btn-mode">MonkeyType (Daily)</button>
+          <button id="modeFree" class="btn-mode">Free</button>
+          <button id="modeDaily" class="btn-mode active">
+            MonkeyType (Daily)
+          </button>
         </div>
       </header>
 
-      <section
-        id="dailyPanel"
-        class="daily-panel"
-        style="display: none; margin-top: 12px;"
-      >
+      <section id="dailyPanel" class="daily-panel" style="margin-top: 12px;">
         <div><strong>Today's word:</strong> <span id="dailyWord">—</span></div>
         <div style="margin-top: 8px;">
           <div id="dailyProgress" class="daily-progress"></div>
@@ -41,12 +39,12 @@
         </div>
       </section>
 
-      <section class="novel">
+      <section class="novel" style="display: none;">
         <textarea
           id="novelText"
           readonly
           spellcheck="false"
-          placeholder="Start your novel. One key at a time."
+          placeholder="Start your story. One key at a time."
         ></textarea>
         <div id="fakeCaret" aria-hidden="true"></div>
       </section>
@@ -77,7 +75,7 @@
         Shortcuts: <kbd>Space</kbd>/<kbd>Enter</kbd> = type,
         <kbd>Backspace</kbd> = undo
         <span class="sep">•</span>
-        <span class="muted">Reset: Ctrl+Shift+X</span>
+        <span class="muted">Reset (Daily): Ctrl+Shift+X</span>
       </footer>
     </main>
 

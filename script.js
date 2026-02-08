@@ -57,6 +57,7 @@ const dailyStreamEl = document.getElementById("dailyStream");
 const shareDailyBtn = document.getElementById("shareDaily");
 const resetDailyBtn = document.getElementById("resetDaily");
 
+const novelSection = document.querySelector(".novel");
 const novelText = document.getElementById("novelText");
 const typeBtn = document.getElementById("typeBtn");
 const undoBtn = document.getElementById("undoBtn");
@@ -122,11 +123,17 @@ function setMode(m) {
     modeFreeBtn.classList.add("active");
     modeDailyBtn.classList.remove("active");
     dailyPanel.style.display = "none";
+    if (novelSection) {
+      novelSection.style.display = "block";
+    }
     novelText.style.display = "block";
   } else {
     modeFreeBtn.classList.remove("active");
     modeDailyBtn.classList.add("active");
     dailyPanel.style.display = "block";
+    if (novelSection) {
+      novelSection.style.display = "none";
+    }
     novelText.style.display = "none";
   }
   render();
@@ -241,10 +248,10 @@ function dailyUndo() {
 }
 
 function dailyReset() {
+  state.daily.keystrokes += 1;
   state.daily.stream = "";
   state.daily.history = [];
   state.daily.progress = 0;
-  state.daily.keystrokes = 0;
   state.daily.finished = false;
   saveDailyFor(new Date().toISOString().slice(0, 10));
   render();
@@ -303,6 +310,7 @@ function renderFreeUI() {
     : 0;
   stats.textContent = `${chars} chars • ${words} words • ${state.free.keystrokes} keystrokes`;
   undoBtn.disabled = state.free.history.length === 0;
+  resetBtn.disabled = true;
   positionCaretAtEnd();
 }
 
@@ -324,11 +332,12 @@ function renderDailyUI() {
     dailyProgressEl.appendChild(slot);
   }
   // stream
-  dailyStreamEl.textContent = state.daily.stream || "(no input yet)";
+  dailyStreamEl.textContent = state.daily.stream;
 
   // stats area reuse: show keystrokes and progress
   stats.textContent = `${state.daily.keystrokes} keystrokes • progress ${state.daily.progress}/${state.daily.word.length}`;
   undoBtn.disabled = state.daily.history.length === 0;
+  resetBtn.disabled = false;
 }
 
 /* shared render */
@@ -407,8 +416,9 @@ function handleUndo() {
 }
 
 function handleReset() {
-  if (state.mode === "free") freeReset();
-  else dailyReset();
+  if (state.mode === "daily") {
+    dailyReset();
+  }
 }
 
 /* ---------- EVENTS ---------- */
@@ -468,7 +478,7 @@ function boot() {
   dailyInit();
 
   // default mode: free
-  setMode("free");
+  setMode("daily");
   render();
 }
 
